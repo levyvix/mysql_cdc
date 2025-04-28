@@ -12,6 +12,7 @@ from pymysqlreplication.row_event import (
     UpdateRowsEvent,
     WriteRowsEvent,
 )
+from rich import print_json
 
 # Global variables
 ENVIRONMENT = None
@@ -248,7 +249,7 @@ def publish_data(data: str):
         color = operation_colors.get(operation, "")
 
         print(f"\n{color}[{operation} em {data_dict['table']}]{reset_color}")
-        print(data_dict)
+        print_json(data)
         print("-" * 50)
 
 

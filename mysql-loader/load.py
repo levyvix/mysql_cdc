@@ -16,23 +16,32 @@ CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )
 """)
 
-# Inserindo alguns dados iniciais
-print("Inserindo dados iniciais...")
-users = [
-    ("João Silva", "joao@example.com"),
-    ("Maria Santos", "maria@example.com"),
-    ("Pedro Costa", "pedro@example.com"),
-]
+# Verificar se a tabela está vazia
+cursor.execute("SELECT COUNT(*) FROM users")
+result = cursor.fetchone()
+count = result[0] if result is not None else 0
 
-for name, email in users:
-    cursor.execute("INSERT INTO users (name, email) VALUES (%s, %s)", (name, email))
+# Inserindo dados iniciais apenas se a tabela estiver vazia
+if count == 0:
+    print("Inserindo dados iniciais...")
+    users = [
+        ("João Silva", "joao@example.com"),
+        ("Maria Santos", "maria@example.com"),
+        ("Pedro Costa", "pedro@example.com"),
+    ]
 
-connection.commit()
-print(f"Inseridos {len(users)} usuários iniciais.")
+    for name, email in users:
+        cursor.execute("INSERT INTO users (name, email) VALUES (%s, %s)", (name, email))
+
+    connection.commit()
+    print(f"Inseridos {len(users)} usuários iniciais.")
+else:
+    print("Tabela já contém dados, pulando inserção inicial.")
 
 
 # Função para simular alterações no banco

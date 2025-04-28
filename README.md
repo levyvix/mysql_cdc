@@ -12,14 +12,18 @@ Este projeto demonstra a implementação de Change Data Capture (CDC) com MySQL,
 
 1. Clone o repositório:
 ```bash
-git clone <repository-url>
+git clone https://github.com/levyvix/mysql_cdc.git
 cd mysql_cdc
+```
+
+2. Instale UV:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 2. Instale as dependências usando UV:
 ```bash
-uv pip install pymysql
-uv pip install mysql-replication
+uv sync
 ```
 
 ## Configuração do Ambiente
@@ -38,7 +42,7 @@ docker ps
 
 1. Execute o script de carga que vai criar a tabela e inserir dados iniciais:
 ```bash
-uv run mysql-loader/main.py
+uv run mysql-loader/load.py
 ```
 
 Este script vai:
@@ -77,7 +81,7 @@ mysql_cdc/
 ├── mysql-config/
 │ └── my.cnf # Configurações do MySQL (binlog)
 ├── mysql-loader/
-│ └── main.py # Script para carregar dados de teste
+│ └── load.py # Script para carregar dados de teste
 └── main.py # Script principal do CDC
 
 
