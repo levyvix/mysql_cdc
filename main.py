@@ -28,7 +28,7 @@ topic_path = None
 pubsub_v1 = None
 
 
-def set_environment(env: Optional[Literal["dev", "prod"] | None] = None) -> "None":
+def set_environment(env: Optional[Literal["dev", "prod"]] = None) -> None:
     """Set the global environment configuration"""
 
     global ENVIRONMENT, pubsub_v1
@@ -60,12 +60,12 @@ CONFIG = {
     },
     "prod": {
         "mysql": {
-            "host": "seu-host-mysql-prod",
-            "user": "seu-usuario-prod",
-            "password": "sua-senha-prod",
-            "database": "seu-banco-prod",
+            "host": "localhost",
+            "user": "testuser",
+            "password": "testpass",
+            "database": "testdb",
         },
-        "gcp": {"project_id": "seu-projeto-gcp", "topic_id": "mysql-changes"},
+        "gcp": {"project_id": "galvanic-flame-384620", "topic_id": "mysql-topic"},
     },
 }
 
@@ -256,7 +256,7 @@ def publish_data(data: str):
 
 
 @app.default
-def main(env: Optional[Literal["dev", "prod"] | None] = None):
+def main(env: Optional[Literal["dev", "prod"]] = None):
     # Set environment based on command line argument
     set_environment(env)
 

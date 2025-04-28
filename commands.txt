@@ -1,0 +1,7 @@
+gcloud auth login
+
+gcloud config set project galvanic-flame-384620
+
+gcloud pubsub topics create mysql-topic
+
+gcloud auth application-default login
