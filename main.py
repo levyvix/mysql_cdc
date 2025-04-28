@@ -1,10 +1,11 @@
-import argparse
 import json
 import os
 import time
 from datetime import datetime
+from typing import Any, Literal, Optional
 
 import pymysql
+from cyclopts import App
 from pymysqlreplication import BinLogStreamReader
 from pymysqlreplication.row_event import (
     DeleteRowsEvent,
@@ -15,15 +16,23 @@ from pymysqlreplication.row_event import (
 from rich import print_json
 
 # Global variables
+
+app = App(
+    name="mysql-cdc-to-pubsub",
+    version="0.1.0",
+)
+
 ENVIRONMENT = None
 publisher = None
 topic_path = None
 pubsub_v1 = None
 
 
-def set_environment(env=None):
+def set_environment(env: Optional[Literal["dev", "prod"] | None] = None) -> "None":
     """Set the global environment configuration"""
+
     global ENVIRONMENT, pubsub_v1
+
     ENVIRONMENT = env or os.environ.get("ENVIRONMENT", "dev").lower()
 
     # Import Pub/Sub only in prod mode
@@ -38,9 +47,6 @@ def set_environment(env=None):
             )
             raise
 
-
-# Initialize environment
-set_environment()
 
 # Configurações
 CONFIG = {
@@ -85,7 +91,7 @@ def init_pubsub_client():
 publisher, topic_path = init_pubsub_client()
 
 
-def get_mysql_config():
+def get_mysql_config() -> dict[str, str]:
     """Return MySQL configuration based on environment"""
     if ENVIRONMENT is None:
         raise RuntimeError("Environment not initialized")
@@ -101,7 +107,7 @@ def get_latest_binlog_position():
         return {"log_file": "", "log_pos": 0}
 
 
-def setup_binlog_connection():
+def setup_binlog_connection() -> BinLogStreamReader:
     """Configura conexão MySQL com CDC habilitado"""
     mysql_config = get_mysql_config()
     conn = pymysql.connect(
@@ -128,32 +134,23 @@ def setup_binlog_connection():
     current_log_file = binlog_info[0]
     current_log_pos = binlog_info[1]
 
-    # Recupera última posição processada
-    last_position = get_latest_binlog_position()
-
-    # Se não temos posição salva, usamos a atual
-    if not last_position["log_file"]:
-        last_position["log_file"] = current_log_file
-        last_position["log_pos"] = current_log_pos
-
     # Cria conexão para streaming de binlog
-
     stream = BinLogStreamReader(
         connection_settings=mysql_config,
         server_id=100,
         blocking=True,
         only_events=[DeleteRowsEvent, WriteRowsEvent, UpdateRowsEvent],
-        log_file=last_position["log_file"],
-        log_pos=last_position["log_pos"],
+        log_file=current_log_file,
+        log_pos=current_log_pos,
         resume_stream=True,
     )
 
     return stream
 
 
-def row_to_dict(row):
+def row_to_dict(row: dict[str, Any]) -> dict[str, Any]:
     """Converte row para dict serializável"""
-    result = {}
+    result: dict[str, Any] = {}
     for key, value in row.items():
         if isinstance(value, datetime):
             result[key] = value.isoformat()
@@ -164,10 +161,12 @@ def row_to_dict(row):
     return result
 
 
-def process_binlog_event(event: RowsEvent):
-    """Processa um evento de binlog e publica"""
+def process_binlog_event(event: RowsEvent) -> None:
+    """Processa um evento de binlog e publica
 
-    print(event)
+    Args:
+        event (RowsEvent): Evento de binlog.
+    """
 
     db_name = event.schema
     table_name = event.table
@@ -181,6 +180,7 @@ def process_binlog_event(event: RowsEvent):
                     "operation": operation,
                     "database": db_name,
                     "table": table_name,
+                    "primary_key": event.primary_key,
                     "data": row_to_dict(row["values"]),
                     "timestamp": datetime.now().isoformat(),
                 }
@@ -194,6 +194,7 @@ def process_binlog_event(event: RowsEvent):
                     "operation": operation,
                     "database": db_name,
                     "table": table_name,
+                    "primary_key": event.primary_key,
                     "data_before": row_to_dict(row["before_values"]),
                     "data_after": row_to_dict(row["after_values"]),
                     "timestamp": datetime.now().isoformat(),
@@ -208,6 +209,7 @@ def process_binlog_event(event: RowsEvent):
                     "operation": operation,
                     "database": db_name,
                     "table": table_name,
+                    "primary_key": event.primary_key,
                     "data": row_to_dict(row["values"]),
                     "timestamp": datetime.now().isoformat(),
                 }
@@ -253,31 +255,22 @@ def publish_data(data: str):
         print("-" * 50)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="MySQL CDC para Pub/Sub ou terminal")
-
-    parser.add_argument(
-        "--env",
-        choices=["dev", "prod"],
-        default="dev",
-        help="Ambiente a ser executado (dev ou prod)",
-    )
-    args = parser.parse_args()
-
+@app.default
+def main(env: Optional[Literal["dev", "prod"] | None] = None):
     # Set environment based on command line argument
-    set_environment(args.env)
+    set_environment(env)
 
     if ENVIRONMENT is None:
         raise RuntimeError("Failed to initialize environment")
 
-    print(f"Iniciando CDC do MySQL em modo {args.env.upper()}...")
-    if args.env == "dev":
+    print(f"Iniciando CDC do MySQL em modo {ENVIRONMENT.upper()}...")
+    if ENVIRONMENT == "dev":
         print("Alterações serão exibidas no terminal")
     else:
         print("Alterações serão publicadas no Pub/Sub")
 
     # Reinicializa cliente Pub/Sub se mudamos para prod
-    if args.env == "prod":
+    if ENVIRONMENT == "prod":
         global publisher, topic_path
         publisher, topic_path = init_pubsub_client()
 
@@ -300,4 +293,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    app()
